@@ -8,18 +8,20 @@ import (
 	"strconv"
 )
 
-func GetBalance(exchange, currency string) float64 {
+// TODO - enforce client is not null before getting
+
+func (self *CacheClient) GetBalance(exchange, currency string) float64 {
 	log.Debug("reading balance", "module", "streams", "exchange", exchange, "currency", currency)
 	key := keys.BuildBalancesKey(exchange)
-	balance, err := client.HGet(key, currency).Float64()
+	balance, err := self.client.HGet(key, currency).Float64()
 	if err != nil {
-		log.Error("error getting balance", "module", "streams", "key", key)
+		log.Error("error getting balance", "module", "streams", "key", key, "error", err)
 	}
 
 	return balance
 }
 
-func GetOrderBook(exchange, pair string) exchanges.OrderBook {
+func (self *CacheClient) GetOrderBook(exchange, pair string) exchanges.OrderBook {
 	log.Debug("reading order book", "module", "streams", "exchange", exchange, "pair", pair)
 	key := keys.BuildOrderBookKey(exchange, pair)
 	asksKey := fmt.Sprintf("%s:asks", key)
@@ -27,18 +29,18 @@ func GetOrderBook(exchange, pair string) exchanges.OrderBook {
 
 	orderBook := exchanges.NewOrderBook(exchange, pair)
 
-	asks, err := client.HGetAll(asksKey).Result()
+	asks, err := self.client.HGetAll(asksKey).Result()
 	if err != nil {
-		log.Error("error getting order book asks", "module", "streams", "key", asksKey)
+		log.Error("error getting order book asks", "module", "streams", "key", asksKey, "error", err)
 	}
 
 	for price, volume := range asks {
 		orderBook.Asks[price], _ = strconv.ParseFloat(volume, 64)
 	}
 
-	bids, err := client.HGetAll(bidsKey).Result()
+	bids, err := self.client.HGetAll(bidsKey).Result()
 	if err != nil {
-		log.Error("error getting order book bids", "module", "streams", "key", bidsKey)
+		log.Error("error getting order book bids", "module", "streams", "key", bidsKey, "error", err)
 	}
 
 	for price, volume := range bids {
@@ -48,11 +50,21 @@ func GetOrderBook(exchange, pair string) exchanges.OrderBook {
 	return *orderBook
 }
 
-func GetTicker(exchange, pair string) exchanges.Ticker {
+func (self *CacheClient) GetTicker(exchange, pair string) exchanges.Ticker {
 	log.Debug("reading ticker", "module", "streams", "exchange", exchange, "pair", pair)
 	panic("please implement")
 	//key := fmt.Sprintf("%s-Ticker-%s", exchange, pair)
 	//
 	//
 	//return ticker
+}
+
+func (self *CacheClient) GetBotEncoding(botKey string) (string, error) {
+	botEncoding, err := self.client.HGet("botStorage", botKey).Result()
+	if err != nil {
+		log.Error("error getting bot", "module", "streams", "botKey", botKey, "error", err)
+		return "", err
+	}
+
+	return botEncoding, nil
 }
